@@ -25,6 +25,10 @@ export class SearchCommand {
     this.indexer = new CodeIndexer(config);
   }
 
+  public getIndexer(): CodeIndexer {
+    return this.indexer;
+  }
+
   public async execute(): Promise<void> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -32,7 +36,7 @@ export class SearchCommand {
       return;
     }
 
-    await this.ensureIndexed(workspaceFolders[0]);
+    await this.ensureIndexed(workspaceFolders);
 
     const query = await this.getSearchQuery();
     if (!query) {
@@ -58,7 +62,7 @@ export class SearchCommand {
     await this.displayResults(results, query);
   }
 
-  private async ensureIndexed(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
+  public async ensureIndexed(workspaceFolders: readonly vscode.WorkspaceFolder[]): Promise<void> {
     if (this.isIndexing) {
       vscode.window.showInformationMessage('Indexing in progress...');
       return;
@@ -74,7 +78,9 @@ export class SearchCommand {
         cancellable: false
       }, async (progress) => {
         progress.report({ message: 'Scanning files...' });
-        await this.indexer.indexWorkspace(workspaceFolder);
+        for (const folder of workspaceFolders) {
+          await this.indexer.indexWorkspace(folder);
+        }
         progress.report({ message: 'Indexing complete!' });
       });
       
@@ -183,7 +189,9 @@ export class SearchCommand {
       title: 'CodeScope: Refreshing index...',
       cancellable: false
     }, async () => {
-      await this.indexer.indexWorkspace(workspaceFolders[0]);
+      for (const folder of workspaceFolders) {
+        await this.indexer.indexWorkspace(folder);
+      }
     });
 
     const stats = this.indexer.getStatistics();

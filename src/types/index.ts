@@ -37,6 +37,7 @@ export interface SearchQuery {
   text: string;
   intent: QueryIntent;
   keywords: string[];
+  actionKeywords: string[];
   elementTypes: ElementType[];
   language?: string;
 }
@@ -91,8 +92,7 @@ export interface ParseError {
 
 export enum Language {
   TYPESCRIPT = 'typescript',
-  JAVASCRIPT = 'javascript',
-  PYTHON = 'python'
+  JAVASCRIPT = 'javascript'
 }
 
 export interface ParserOptions {

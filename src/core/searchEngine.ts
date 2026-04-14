@@ -30,9 +30,14 @@ export class SearchEngine {
     }
 
     if (languages.length > 0) {
-      filteredElements = filteredElements.filter(element =>
-        languages.some(lang => element.filePath.endsWith(`.${lang}`))
-      );
+      filteredElements = filteredElements.filter(element => {
+        const extMap: Record<string, string[]> = {
+          'typescript': ['.ts', '.tsx'],
+          'javascript': ['.js', '.jsx']
+        };
+        const validExts = languages.flatMap(lang => extMap[lang as string] || [`.${lang}`]);
+        return validExts.some(ext => element.filePath.endsWith(ext));
+      });
     }
 
     if (filePatterns.length > 0) {
@@ -88,7 +93,7 @@ export class SearchEngine {
         const normalizedKeyword = normalize(keyword);
         let keywordFound = false;
         
-        // Check in order of importance: Name > Signature > Description
+        // Check in order of importance: Name > Signature > Description > Parameters
         if (elementName.includes(normalizedKeyword)) {
             baseScore += 1.5 * this.getNameMatchScore(elementName, normalizedKeyword);
             keywordFound = true;
@@ -98,6 +103,9 @@ export class SearchEngine {
         } else if (elementDescription.includes(normalizedKeyword)) {
             baseScore += 0.3;
             keywordFound = true;
+        } else if (element.parameters?.some(p => normalize(p.name).includes(normalizedKeyword))) {
+            baseScore += 0.4;
+            keywordFound = true;
         }
         
         if (keywordFound) {
@@ -105,13 +113,21 @@ export class SearchEngine {
         }
     }
 
-    if (matchedKeywordsCount === 0) {
-        return 0;
+    // Evaluate optional action words for bonus points, but don't fail completeness metrics
+    for (const action of query.actionKeywords) {
+        const normalizedAction = normalize(action);
+        if (elementName.includes(normalizedAction)) {
+            baseScore += 0.4;
+        } else if (elementDescription.includes(normalizedAction)) {
+            baseScore += 0.2;
+        }
     }
+
+    if (keywords.length === 0 && query.actionKeywords.length === 0) return 0;
     
     // --- The Core Improvement ---
     // Calculate a "completeness factor". This heavily penalizes partial matches.
-    const completenessFactor = matchedKeywordsCount / keywords.length;
+    const completenessFactor = keywords.length === 0 ? 1.0 : matchedKeywordsCount / keywords.length;
 
     // If a result matches less than half the keywords, it's probably not relevant.
     // This is a powerful filter for multi-word queries.
@@ -124,11 +140,13 @@ export class SearchEngine {
     // e.g., 100% complete = 1.0 multiplier, 50% complete = 0.25 multiplier.
     let finalScore = baseScore * (completenessFactor * completenessFactor);
 
-    // Add a small bonus for matching the precise element type the user asked for.
-    if (query.intent === QueryIntent.FIND_FUNCTIONS && element.type === ElementType.FUNCTION) {
-        finalScore += 0.2; // Bonus for a pure function when "function" was specified
-    } else if (query.elementTypes.includes(element.type)) {
-        finalScore += 0.1; // Smaller bonus for a related type (e.g., a method)
+    if (matchedKeywordsCount > 0 || keywords.length === 0) {
+        // Add a small bonus for matching the precise element type the user asked for.
+        if (query.intent === QueryIntent.FIND_FUNCTIONS && element.type === ElementType.FUNCTION) {
+            finalScore += 0.2; // Bonus for a pure function when "function" was specified
+        } else if (query.elementTypes.includes(element.type)) {
+            finalScore += 0.1; // Smaller bonus for a related type (e.g., a method)
+        }
     }
     
     // Normalize the score to be roughly between 0 and 1
@@ -148,10 +166,6 @@ export class SearchEngine {
     return 0;
   }
 
-  private getSemanticScore(element: CodeElement, query: SearchQuery): number {
-    // This can be further improved later, but for now, the main scoring logic is more important.
-    return 0;
-  }
 
   private getMatchedKeywords(element: CodeElement, keywords: string[], caseSensitive: boolean): string[] {
     const normalize = (text: string) => caseSensitive ? text : text.toLowerCase();

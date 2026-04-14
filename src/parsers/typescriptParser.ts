@@ -53,27 +53,37 @@ export class TypeScriptParser {
     errors: ParseError[],
     imports: string[],
     exports: string[],
-    depth: number = 0
+    depth: number = 0,
+    parentName?: string
   ): void {
     if (depth > (this.options.maxDepth || 10)) {
       return;
     }
 
+    let nextParentName = parentName;
+    if (ts.isClassDeclaration(node) && node.name) {
+      nextParentName = node.name.text;
+    } else if (ts.isInterfaceDeclaration(node)) {
+      nextParentName = node.name.text;
+    }
+
     switch (node.kind) {
       case ts.SyntaxKind.FunctionDeclaration:
-        this.processFunctionDeclaration(node as ts.FunctionDeclaration, elements);
+        this.processFunctionDeclaration(node as ts.FunctionDeclaration, elements, parentName);
         break;
       case ts.SyntaxKind.ClassDeclaration:
         this.processClassDeclaration(node as ts.ClassDeclaration, elements);
         break;
       case ts.SyntaxKind.MethodDeclaration:
-        this.processMethodDeclaration(node as ts.MethodDeclaration, elements);
+      case ts.SyntaxKind.MethodSignature:
+        this.processMethodDeclaration(node, elements, parentName);
         break;
       case ts.SyntaxKind.PropertyDeclaration:
-        this.processPropertyDeclaration(node as ts.PropertyDeclaration, elements);
+      case ts.SyntaxKind.PropertySignature:
+        this.processPropertyDeclaration(node, elements, parentName);
         break;
       case ts.SyntaxKind.VariableDeclaration:
-        this.processVariableDeclaration(node as ts.VariableDeclaration, elements);
+        this.processVariableDeclaration(node as ts.VariableDeclaration, elements, parentName);
         break;
       case ts.SyntaxKind.InterfaceDeclaration:
         this.processInterfaceDeclaration(node as ts.InterfaceDeclaration, elements);
@@ -93,11 +103,11 @@ export class TypeScriptParser {
     }
 
     ts.forEachChild(node, child => 
-      this.visitNode(child, elements, errors, imports, exports, depth + 1)
+      this.visitNode(child, elements, errors, imports, exports, depth + 1, nextParentName)
     );
   }
 
-  private processFunctionDeclaration(node: ts.FunctionDeclaration, elements: CodeElement[]): void {
+  private processFunctionDeclaration(node: ts.FunctionDeclaration, elements: CodeElement[], parentName?: string): void {
     if (!node.name) {return;}
 
     const position = this.getPosition(node);
@@ -110,8 +120,11 @@ export class TypeScriptParser {
       return;
     }
 
+    const baseName = node.name.text;
+    const fullName = parentName ? `${parentName}.${baseName}` : baseName;
+
     elements.push({
-      name: node.name.text,
+      name: fullName,
       type: ElementType.FUNCTION,
       signature: this.getFunctionSignature(node),
       description,
@@ -146,7 +159,7 @@ export class TypeScriptParser {
     });
   }
 
-  private processMethodDeclaration(node: ts.MethodDeclaration, elements: CodeElement[]): void {
+  private processMethodDeclaration(node: any, elements: CodeElement[], parentName?: string): void {
     if (!node.name || !ts.isIdentifier(node.name)) {return;}
 
     const position = this.getPosition(node);
@@ -159,8 +172,11 @@ export class TypeScriptParser {
       return;
     }
 
+    const baseName = node.name.text;
+    const fullName = parentName ? `${parentName}.${baseName}` : baseName;
+
     elements.push({
-      name: node.name.text,
+      name: fullName,
       type: ElementType.METHOD,
       signature: this.getMethodSignature(node),
       description,
@@ -173,7 +189,7 @@ export class TypeScriptParser {
     });
   }
 
-  private processPropertyDeclaration(node: ts.PropertyDeclaration, elements: CodeElement[]): void {
+  private processPropertyDeclaration(node: any, elements: CodeElement[], parentName?: string): void {
     if (!node.name || !ts.isIdentifier(node.name)) {return;}
 
     const position = this.getPosition(node);
@@ -184,8 +200,11 @@ export class TypeScriptParser {
       return;
     }
 
+    const baseName = node.name.text;
+    const fullName = parentName ? `${parentName}.${baseName}` : baseName;
+
     elements.push({
-      name: node.name.text,
+      name: fullName,
       type: ElementType.PROPERTY,
       description,
       filePath: node.getSourceFile().fileName,
@@ -196,21 +215,38 @@ export class TypeScriptParser {
     });
   }
 
-  private processVariableDeclaration(node: ts.VariableDeclaration, elements: CodeElement[]): void {
+  private processVariableDeclaration(node: ts.VariableDeclaration, elements: CodeElement[], parentName?: string): void {
     if (!node.name || !ts.isIdentifier(node.name)) {return;}
 
     const position = this.getPosition(node);
     const description = this.getDescription(node);
+    const baseName = node.name.text;
+    const fullName = parentName ? `${parentName}.${baseName}` : baseName;
 
-    elements.push({
-      name: node.name.text,
-      type: ElementType.VARIABLE,
-      description,
-      filePath: node.getSourceFile().fileName,
-      ...position,
-      returnType: node.type ? node.type.getText() : undefined,
-      context: this.getContext(node)
-    });
+    if (node.initializer && ts.isArrowFunction(node.initializer)) {
+      const arrowFunc = node.initializer;
+      elements.push({
+        name: fullName,
+        type: ElementType.FUNCTION,
+        signature: `const ${baseName} = (${arrowFunc.parameters.map(p => p.getText()).join(', ')}) => ...`,
+        description,
+        filePath: node.getSourceFile().fileName,
+        ...position,
+        parameters: this.extractParameters(arrowFunc.parameters),
+        returnType: arrowFunc.type ? arrowFunc.type.getText() : undefined,
+        context: this.getContext(node)
+      });
+    } else {
+      elements.push({
+        name: fullName,
+        type: ElementType.VARIABLE,
+        description,
+        filePath: node.getSourceFile().fileName,
+        ...position,
+        returnType: node.type ? node.type.getText() : undefined,
+        context: this.getContext(node)
+      });
+    }
   }
 
   private processInterfaceDeclaration(node: ts.InterfaceDeclaration, elements: CodeElement[]): void {
@@ -302,7 +338,7 @@ export class TypeScriptParser {
     });
   }
 
-  private getReturnType(node: ts.FunctionDeclaration | ts.MethodDeclaration): string | undefined {
+  private getReturnType(node: any): string | undefined {
     return node.type ? node.type.getText() : undefined;
   }
 
@@ -342,9 +378,9 @@ export class TypeScriptParser {
     return `function ${name}(${params})${returnType}`;
   }
 
-  private getMethodSignature(node: ts.MethodDeclaration): string {
+  private getMethodSignature(node: any): string {
     const name = node.name?.getText() || '';
-    const params = node.parameters.map(p => p.getText()).join(', ');
+    const params = node.parameters ? node.parameters.map((p: any) => p.getText()).join(', ') : '';
     const returnType = node.type ? `: ${node.type.getText()}` : '';
     return `${name}(${params})${returnType}`;
   }

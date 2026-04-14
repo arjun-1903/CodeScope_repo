@@ -3,12 +3,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TypeScriptParser } from '../parsers/typescriptParser';
 import { WorkspaceIndex, FileIndex, CodeElement, IndexerConfig, Language } from '../types';
+import { VectorIndex } from '../ai/vectorIndex';
 
 export class CodeIndexer {
   private index: WorkspaceIndex;
   private parser: TypeScriptParser;
   private config: IndexerConfig;
   private fileWatcher?: vscode.FileSystemWatcher;
+  public vectorIndex: VectorIndex;
 
   constructor(config: IndexerConfig) {
     this.config = config;
@@ -18,6 +20,7 @@ export class CodeIndexer {
       elements: new Map(),
       lastUpdated: new Date()
     };
+    this.vectorIndex = new VectorIndex();
   }
 
   public async indexWorkspace(workspaceFolder: vscode.WorkspaceFolder): Promise<void> {
@@ -32,11 +35,16 @@ export class CodeIndexer {
     }
 
     this.index.lastUpdated = new Date();
+    
+    // Background execution to vectorize all elements
+    setTimeout(() => {
+      this.vectorIndex.rebuildIndex(this.getAllElements());
+    }, 100);
   }
 
   public async indexFile(filePath: string): Promise<void> {
     try {
-      const stats = fs.statSync(filePath);
+      const stats = await fs.promises.stat(filePath);
       
       if (stats.size > this.config.maxFileSize) {
         console.warn(`Skipping large file: ${filePath}`);
@@ -44,7 +52,7 @@ export class CodeIndexer {
       }
 
       const existingIndex = this.index.files.get(filePath);
-      const fileHash = this.calculateFileHash(filePath);
+      const fileHash = this.calculateFileHash(stats.mtime);
       
       if (existingIndex && existingIndex.hash === fileHash) {
         return;
@@ -118,15 +126,15 @@ export class CodeIndexer {
 
   private async findCodeFiles(rootPath: string): Promise<string[]> {
     const files: string[] = [];
-    const supportedExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py'];
+    const supportedExtensions = ['.ts', '.tsx', '.js', '.jsx'];
 
     const traverse = async (dir: string): Promise<void> => {
       try {
-        const items = fs.readdirSync(dir);
+        const items = await fs.promises.readdir(dir);
         
         for (const item of items) {
           const itemPath = path.join(dir, item);
-          const stats = fs.statSync(itemPath);
+          const stats = await fs.promises.stat(itemPath);
           
           if (stats.isDirectory()) {
             if (!this.shouldExcludeDirectory(itemPath)) {
@@ -164,10 +172,10 @@ export class CodeIndexer {
 
     return excludePatterns.some(pattern => {
       if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+        const regex = new RegExp(pattern.replace(/\./g, '\\.').replace(/\*/g, '.*'));
         return regex.test(dirPath);
       }
-      return dirName === pattern || dirPath.includes(pattern);
+      return dirName === pattern || dirPath.split(path.sep).includes(pattern);
     });
   }
 
@@ -185,17 +193,15 @@ export class CodeIndexer {
 
     return excludePatterns.some(pattern => {
       if (pattern.includes('*')) {
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+        const regex = new RegExp(pattern.replace(/\./g, '\\.').replace(/\*/g, '.*'));
         return regex.test(fileName);
       }
       return fileName === pattern;
     });
   }
 
-  private calculateFileHash(filePath: string): string {
-    const content = fs.readFileSync(filePath, 'utf8');
-    const stats = fs.statSync(filePath);
-    return `${stats.mtime.getTime()}-${content.length}`;
+  private calculateFileHash(mtime: Date): string {
+    return `${mtime.getTime()}`;
   }
 
   private setupFileWatcher(workspaceFolder: vscode.WorkspaceFolder): void {
@@ -205,7 +211,7 @@ export class CodeIndexer {
 
     const pattern = new vscode.RelativePattern(
       workspaceFolder,
-      '**/*.{ts,tsx,js,jsx,py}'
+      '**/*.{ts,tsx,js,jsx}'
     );
 
     this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);

@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { SearchCommand } from './commands/searchCommand';
+import { ChatPanel } from './ui/chatPanel';
+import { RagService } from './ai/ragService';
 
 let searchCommand: SearchCommand;
 
@@ -24,7 +26,20 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(searchDisposable, refreshDisposable);
+	const openChatDisposable = vscode.commands.registerCommand('codescope.openChat', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders) {
+			vscode.window.showErrorMessage('CodeScope AI requires an open workspace.');
+			return;
+		}
+		
+		await searchCommand.ensureIndexed(workspaceFolders);
+		
+		const ragService = new RagService(searchCommand.getIndexer().vectorIndex);
+		ChatPanel.createOrShow(ragService);
+	});
+
+	context.subscriptions.push(searchDisposable, refreshDisposable, openChatDisposable);
 }
 
 export function deactivate() {

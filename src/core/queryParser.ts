@@ -54,17 +54,19 @@ export class QueryParser {
     const intent = this.determineIntent(words);
     const elementTypes = this.extractElementTypes(words, intent);
     const keywords = this.extractKeywords(words);
+    const actionKeywords = this.extractActionKeywords(words);
 
     return {
       text: queryText,
       intent,
       keywords,
+      actionKeywords,
       elementTypes
     };
   }
 
   private normalizeQuery(query: string): string {
-    return query.toLowerCase().trim();
+    return query.toLowerCase().replace(/[.,!?]/g, "").trim();
   }
 
   private tokenize(query: string): string[] {
@@ -130,7 +132,8 @@ export class QueryParser {
           ElementType.VARIABLE,
           ElementType.PROPERTY,
           ElementType.INTERFACE,
-          ElementType.TYPE
+          ElementType.TYPE,
+          ElementType.ENUM
         );
         break;
     }
@@ -138,25 +141,45 @@ export class QueryParser {
     return types;
   }
 
+  private stemWord(word: string): string {
+    let stem = word;
+    if (stem.endsWith('ies')) return stem.slice(0, -3) + 'y';
+    if (stem.endsWith('es') && !stem.endsWith('ses')) return stem.slice(0, -2);
+    if (stem.endsWith('s') && !stem.endsWith('ss')) stem = stem.slice(0, -1);
+    if (stem.endsWith('ing')) return stem.slice(0, -3);
+    if (stem.endsWith('ed')) return stem.slice(0, -2);
+    return stem;
+  }
+
   private extractKeywords(words: string[]): string[] {
     const keywords: string[] = [];
 
     words.forEach(word => {
-      if (QueryParser.ACTION_KEYWORDS.includes(word)) {
-        keywords.push(word);
+      if (this.isStopWord(word)) {
+        return;
       }
+      
       if (QueryParser.DOMAIN_KEYWORDS.includes(word)) {
-        keywords.push(word);
-      }
-      if (!QueryParser.FUNCTION_KEYWORDS.includes(word) &&
-          !QueryParser.CLASS_KEYWORDS.includes(word) &&
-          !QueryParser.VARIABLE_KEYWORDS.includes(word) &&
-          !this.isStopWord(word)) {
-        keywords.push(word);
+        keywords.push(this.stemWord(word));
+      } else if (!QueryParser.FUNCTION_KEYWORDS.includes(word) &&
+                 !QueryParser.CLASS_KEYWORDS.includes(word) &&
+                 !QueryParser.VARIABLE_KEYWORDS.includes(word) &&
+                 !QueryParser.ACTION_KEYWORDS.includes(word)) {
+        keywords.push(this.stemWord(word));
       }
     });
 
     return [...new Set(keywords)];
+  }
+
+  private extractActionKeywords(words: string[]): string[] {
+    const actions: string[] = [];
+    words.forEach(word => {
+      if (QueryParser.ACTION_KEYWORDS.includes(word)) {
+        actions.push(this.stemWord(word));
+      }
+    });
+    return [...new Set(actions)];
   }
 
   private isStopWord(word: string): boolean {
@@ -165,7 +188,8 @@ export class QueryParser {
       'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
       'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
       'should', 'may', 'might', 'must', 'can', 'all', 'any', 'some', 'this',
-      'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their'
+      'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their',
+      'how', 'what', 'where', 'why', 'when', 'who'
     ];
     return stopWords.includes(word);
   }
