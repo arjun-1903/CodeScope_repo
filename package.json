@@ -23,7 +23,7 @@
       },
       {
         "command": "codescope.openChat",
-        "title": "CodeScope: AI Chat"
+        "title": "CodeScope: Contextual Chat"
       }
     ],
     "keybindings": [

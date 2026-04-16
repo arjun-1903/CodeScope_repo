@@ -1,71 +1,33 @@
-# codescope README
+# CodeScope
 
-This is the README for your extension "codescope". After writing up a brief description, we recommend including the following sections.
+CodeScope is a semantic code search tool for Visual Studio Code. It integrates LangChain and OpenAI's embedding models to enable natural language queries and a local, RAG-based chat interface.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- **Semantic Code Search**: Use natural language queries to find functions, classes, and methods across the codebase.
+- **Contextual Chat**: Interact with a chat interface that understands project context using Retrieval-Augmented Generation (RAG).
+- **Semantic Indexing**: Locally index the codebase to provide semantically relevant search results using the OpenAI API.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+You need an active OpenAI API Key because the extension uses OpenAI's embedding and GPT models for search and chat generation.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+CodeScope adds the following settings to the VS Code configuration:
 
-For example:
+* `codescope.openaiApiKey`: **Required**. Your OpenAI API Key for embeddings and responses.
 
-This extension contributes the following settings:
+## Commands and Keybindings
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+The following commands are available from the Command Palette:
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- **CodeScope: Search Code** (`Ctrl+Shift+Alt+F` / `Cmd+Shift+Alt+F` on macOS): Open the semantic code search view.
+- **CodeScope: Contextual Chat** (`Ctrl+Shift+Alt+C` / `Cmd+Shift+Alt+C` on macOS): Open the chat pane.
+- **CodeScope: Refresh Index**: Refresh the workspace semantic index.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release. Features semantic search capabilities, RAG-based chat, and LangChain setup.
