@@ -26,6 +26,21 @@ The following commands are available from the Command Palette:
 - **CodeScope: Contextual Chat** (`Ctrl+Shift+Alt+C` / `Cmd+Shift+Alt+C` on macOS): Open the chat pane.
 - **CodeScope: Refresh Index**: Refresh the workspace semantic index.
 
+## Architecture:
+- Code parsing → embedding generation → vector storage → retrieval → LLM response
+
+## Indexing:
+- Uses OpenAI embeddings for semantic similarity
+- Stores vectors locally for fast retrieval
+
+## Retrieval:
+- Top-k semantic matching of code snippets
+
+## Example
+Query: "function to calculate interest"
+→ returns relevant code blocks
+→ LLM explains logic
+
 ## Release Notes
 
 ### 0.0.1
