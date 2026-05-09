@@ -1,16 +1,32 @@
 # CodeScope
+CodeScope is a semantic code search and contextual code understanding tool for Visual Studio Code.
 
-CodeScope is a semantic code search tool for Visual Studio Code. It integrates LangChain and OpenAI's embedding models to enable natural language queries and a local, RAG-based chat interface.
+Instead of relying only on keyword matching or blindly chunking files for embeddings, CodeScope parses repositories using the TypeScript Compiler API and indexes functions, classes, and methods individually to improve retrieval quality.
+
+The project started as an experiment to see whether semantic retrieval improves when embeddings are aligned to actual code structure rather than arbitrary text chunks.
 
 ## Features
 
-- **Semantic Code Search**: Use natural language queries to find functions, classes, and methods across the codebase.
-- **Contextual Chat**: Interact with a chat interface that understands project context using Retrieval-Augmented Generation (RAG).
-- **Semantic Indexing**: Locally index the codebase to provide semantically relevant search results using the OpenAI API.
+- Semantic code search using natural language
+- Context-aware repository chat using RAG
+- Structural parsing of functions/classes/methods
+- Local vector indexing using cosine similarity
+- Lightweight setup without external vector databases
+- VS Code integration
 
 ## Requirements
 
 You need an active OpenAI API Key because the extension uses OpenAI's embedding and GPT models for search and chat generation.
+
+## Why I built this
+
+I got frustrated with how difficult it was to navigate unfamiliar codebases using traditional keyword search. Most tools either relied on string matching or chunked files blindly, which often destroyed structural context.
+
+CodeScope was built to experiment with structure-aware semantic retrieval for developer workflows.
+
+## Key Insight
+
+The biggest improvement came from indexing around actual code boundaries like functions and classes instead of arbitrary text chunks, which significantly improved retrieval relevance.
 
 ## Extension Settings
 
