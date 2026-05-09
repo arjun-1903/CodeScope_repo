@@ -45,20 +45,24 @@ The following commands are available from the Command Palette:
 ## Architecture:
 - Code parsing → embedding generation → vector storage → retrieval → LLM response
 
-## Indexing:
-- Uses OpenAI embeddings for semantic similarity
-- Stores vectors locally for fast retrieval
+## Setup
 
-## Retrieval:
-- Top-k semantic matching of code snippets
+1. Clone the repository
 
-## Example
-Query: "function to calculate interest"
-→ returns relevant code blocks
-→ LLM explains logic
+```bash
+git clone <repo-url>
+```
 
-## Release Notes
+2. Install dependencies
 
-### 0.0.1
+```bash
+npm install
+```
 
-Initial release. Features semantic search capabilities, RAG-based chat, and LangChain setup.
+3. Add your OpenAI API key in VS Code settings:
+
+```text
+codescope.openaiApiKey
+```
+
+4. Run the extension
